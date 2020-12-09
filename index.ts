@@ -1,6 +1,8 @@
 import PDFDocument from 'pdfkit'
 import fs from 'fs'
-import { createRenderer, RendererOptions, h, ref, defineComponent } from '@vue/runtime-core'
+import { createRenderer, RendererOptions, h, defineComponent, computed } from '@vue/runtime-core'
+import { baseCompile } from '@vue/compiler-core'
+import { compile } from 'vue'
 
 enum NodeTypes {
   TEXT = 'TEXT',
@@ -14,9 +16,19 @@ let textCache: Record<any, any> = {
   color: undefined
 }
 
-const nodeOps: RendererOptions<any, typeof PDFDocument> = {
+const nodeOps: RendererOptions<any, any> = {
   patchProp: (...args) => {
-    console.log('patchProp')
+    if (args[0]?.type === NodeTypes.LIST_ITEM) {
+      const children = typeof args[3] === 'function' && args[3]()
+      if (!children) {
+        return
+      }
+
+      if (children && children[0].type !== Text) {
+        throw Error(`Child must be <Text />`)
+      }
+      listItemsCache.push(children[0].props.text)
+    }
   },
 
   forcePatchProp: (el: any, key: string) => {
@@ -167,15 +179,23 @@ const Text = defineComponent({
 const App = defineComponent({
   name: 'App',
   components: { Text, List, ListItem },
-  render() {
-    return [
-      h(Text, { color: 'red' }, () => 'This is the title'),
-      h(List, () => [
-        h(ListItem, 'A'),
-        h(ListItem, 'B')
-      ])
-    ]
-  }
+  render: compile(`
+    <Text color='red'>Title!</Text>
+    <List>
+      <ListItem>
+        <Text color='blue' text='List Item 1' />
+      </ListItem>
+    </List>
+  `)
+  // render() {
+  //   return [
+  //     h(Text, { color: 'red' }, () => 'This is the title'),
+  //     h(List, () => [
+  //       h(ListItem, 'A'),
+  //       h(ListItem, 'B')
+  //     ])
+  //   ]
+  // }
 })
 
 
