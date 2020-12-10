@@ -10,14 +10,34 @@ enum NodeTypes {
   LIST_ITEM = 'LIST_ITEM'
 }
 
-let listItemsCache: string[] = []
-let textCache: Record<any, any> = {
-  value: '',
-  color: undefined
+
+interface ListCache {
+  values: string[]
+  styles: Record<string, any>
+}
+
+interface TextCache {
+  value: string
+  color?: string
+}
+
+let listItemsCache: ListCache = {
+  styles: {},
+  values: [],
+}
+
+let textCache: TextCache = {
+  value: ''
 }
 
 const nodeOps: RendererOptions<any, any> = {
   patchProp: (...args) => {
+    if (args[0]?.type === NodeTypes.LIST) {
+      const attr = args[1]
+      const val = args[3]
+      listItemsCache.styles[attr] = val || true
+    }
+
     if (args[0]?.type === NodeTypes.LIST_ITEM) {
       const children = typeof args[3] === 'function' && args[3]()
       if (!children) {
@@ -27,7 +47,7 @@ const nodeOps: RendererOptions<any, any> = {
       if (children && children[0].type !== Text) {
         throw Error(`Child must be <Text />`)
       }
-      listItemsCache.push(children[0].props.text)
+      listItemsCache.values.push(children[0].props.text)
     }
   },
 
@@ -41,15 +61,23 @@ const nodeOps: RendererOptions<any, any> = {
       return
     }
 
+    if (child.type === NodeTypes.LIST) {
+      if (listItemsCache.styles['color']) {
+        pdf.fillColor(listItemsCache.styles['color'])
+      }
+      pdf.list(listItemsCache.values, listItemsCache.styles)
+      listItemsCache.values = []
+    }
+
+
     if (child.type === NodeTypes.LIST_ITEM) {
-      pdf.list(listItemsCache)
-      listItemsCache = []
+      console.log(`insert: ${NodeTypes.LIST_ITEM}`)
     }
 
     if (child.type === NodeTypes.TEXT) {
+      console.log(`insert: ${NodeTypes.TEXT}`)
       console.log(textCache)
       if (textCache.color) {
-        console.log('fill')
         pdf.fillColor(textCache.color)
       }
       pdf.text(textCache.value)
@@ -102,7 +130,7 @@ const nodeOps: RendererOptions<any, any> = {
   },
 
   setElementText: (el, text) => {
-    listItemsCache.push(text)
+    // listItemsCache.push(text)
     console.log(`setElementText: ${text}`)
   },
 
@@ -170,7 +198,7 @@ const Text = defineComponent({
     }
     if (this.$attrs.color) {
       console.log('Setting to red')
-      textCache.color = this.$attrs.color
+      textCache.color = this.$attrs.color as string | undefined
     }
     return h(NodeTypes.TEXT, this.$props, this.$slots.default())
   }
@@ -181,9 +209,12 @@ const App = defineComponent({
   components: { Text, List, ListItem },
   render: compile(`
     <Text color='red'>Title!</Text>
-    <List>
+    <List color='blue' underline>
       <ListItem>
-        <Text color='blue' text='List Item 1' />
+        <Text text='List Item 1' />
+      </ListItem>
+      <ListItem>
+        <Text text='List Item 2' />
       </ListItem>
     </List>
   `)
