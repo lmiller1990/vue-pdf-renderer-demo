@@ -1,9 +1,11 @@
 import PDFDocument from 'pdfkit'
 import fs from 'fs'
 import { createRenderer, RendererOptions, h, defineComponent, computed } from '@vue/runtime-core'
-import { createNodeOps } from '.'
+import { createNodeOps, nodeMap, PDFNode } from '.'
 import { View, ViewWrapper, Text } from './components'
 import { compile } from 'vue'
+import { PDFLinearGradient } from 'pdfkit/js/gradient'
+import { transform } from 'typescript'
 
 const save = console.warn
 console.warn = (msg: string) => {
@@ -42,48 +44,90 @@ const AppTemplate = defineComponent({
   ...common,
   name: 'AppTemplate',
   render: compile(`
-    <View :styles="{color: 'red'}">
-      <Text>Foo</Text>
+    <View>
+      <View :styles="{color: 'red'}">
+        <Text :styles="{color: 'blue'}">Blue</Text>
+        <Text>Red</Text>
+        <Text :styles="{color: 'green'}">Green</Text>
+      </View>
+      <Text>Default</Text>
+      <Text :styles="{color: 'yellow'}">Yellow</Text>
     </View>
   `)
 })
 
-
-const renderFn = () => {
-  const pdf = new PDFDocument()
-  const nodeOps = createNodeOps(pdf)
-  const { createApp } = createRenderer(nodeOps)
-
-  const app = createApp(AppRenderFn)
-  app.mount(pdf)
-
-  pdf
-    .pipe(fs.createWriteStream('./file.pdf'))
-    .on('finish', function () {
-      console.log('PDF closed');
-    })
-
-  // Close PDF and write file.
-  pdf.end()
-}
-
 const renderTemplate = () => {
+  const ParentNode: PDFNode = {
+    id: 'root',
+    parent: undefined,
+    type: 'Document',
+    styles: {
+      color: 'black'
+    },
+    children: [],
+  }
+
   const pdf = new PDFDocument()
-  const nodeOps = createNodeOps(pdf)
+  pdf.pipe(fs.createWriteStream('./goal.pdf'))
+
+
+  const nodeOps = createNodeOps()
   const { createApp } = createRenderer(nodeOps)
 
   const app = createApp(AppTemplate)
-  app.mount(pdf)
+  app.mount(ParentNode)
 
-  pdf
-    .pipe(fs.createWriteStream('./file.pdf'))
-    .on('finish', function () {
-      console.log('PDF closed');
-    })
+  console.log(nodeMap)
 
-  // Close PDF and write file.
+  const getParentStyle = (attr: string, parent?: PDFNode): string => {
+    if (!parent) {
+      return defaults[attr]
+    }
+
+    return parent.styles[attr] 
+      ? parent.styles[attr] 
+      : getParentStyle(attr, parent.parent ? nodeMap[parent.parent] : undefined)
+  }
+
+  const defaults = {
+    color: 'black'
+  }
+
+  const draw = (node: PDFNode) => {
+    console.log(`Drawing for node ${node.type}`)
+    if (node.styles.color) {
+      console.log(node.styles.color)
+      console.log(`Coloring: ${node.styles.color}`)
+      pdf.fill(node.styles.color)
+    } else {
+      pdf.fill(getParentStyle('color', node.parent ? nodeMap[node.parent] : undefined))
+    }
+
+    if (node.value) {
+      console.log(`Writing: ${node.value}`)
+      pdf.text(node.value)
+    }
+  }
+
+  const traverse = (node: PDFNode) => {
+    if (!node.children) {
+      return
+    }
+
+    for (const child of node.children) {
+      draw(nodeMap[child])
+      traverse(nodeMap[child])
+    }
+  }
+
+  const root = nodeMap['root']
+  traverse(root)
   pdf.end()
+
+  console.log('pipe')
+  pdf.on('finish', function () {
+    console.log('PDF closed');
+  })
 }
 
-// renderFn()
 renderTemplate()

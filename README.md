@@ -5,13 +5,13 @@ Hacking on a prototype PDF renderer for Vue 3. This is not for production use, b
 Currently supported is:
 
 ```html
-<Text color='red'>Title!</Text>
-<List color='blue' underline>
-  <ListItem>
-    <Text text='List Item 1' />
-  </ListItem>
-  <ListItem>
-    <Text text='List Item 2' />
-  </ListItem>
-</List>
+<View>
+  <View :styles="{color: 'red'}">
+    <Text :styles="{color: 'blue'}">Blue</Text>
+    <Text>Red</Text>
+    <Text :styles="{color: 'green'}">Green</Text>
+  </View>
+  <Text>Default</Text>
+  <Text :styles="{color: 'yellow'}">Yellow</Text>
+</View>
 ```
