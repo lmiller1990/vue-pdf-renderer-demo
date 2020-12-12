@@ -1,11 +1,9 @@
 import PDFDocument from 'pdfkit'
 import fs from 'fs'
-import { createRenderer, RendererOptions, h, defineComponent, computed } from '@vue/runtime-core'
-import { createNodeOps, nodeMap, PDFNode } from '.'
-import { View, ViewWrapper, Text } from './components'
+import { createRenderer, h, defineComponent } from '@vue/runtime-core'
 import { compile } from 'vue'
-import { PDFLinearGradient } from 'pdfkit/js/gradient'
-import { transform } from 'typescript'
+import { View, Text } from './components'
+import { createNodeOps, nodeMap, PDFNode } from '.'
 
 const save = console.warn
 console.warn = (msg: string) => {
@@ -34,7 +32,28 @@ const AppRenderFn = defineComponent({
       View,
       {},
       [
-        h(Text, {}, () => 'foo')
+        h(View, 
+          { styles: { color: 'red' } },
+          [
+            h(
+              Text, 
+              { styles: { color: 'blue' } },
+              'Blue'
+            ),
+            h(
+              Text, 
+              {},
+              'Red'
+            ),
+            h(
+              Text, 
+              { styles: { color: 'green' } },
+              'Green'
+            )
+          ]
+        ),
+        h(Text, {}, 'default'),
+        h(Text, { styles: { color: 'yellow' } }, 'Yellow')
       ]
     )
   }
@@ -75,6 +94,7 @@ const renderTemplate = () => {
   const { createApp } = createRenderer(nodeOps)
 
   const app = createApp(AppTemplate)
+  // const app = createApp(AppRenderFn)
   app.mount(ParentNode)
 
   console.log(nodeMap)

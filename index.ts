@@ -1,4 +1,4 @@
-import { nextTick, RendererOptions } from '@vue/runtime-core'
+import { RendererOptions } from '@vue/runtime-core'
 
 export interface PDFNode {
   id: string
