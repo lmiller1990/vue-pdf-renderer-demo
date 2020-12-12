@@ -1,5 +1,13 @@
 import { defineComponent, h } from 'vue'
 
+export const Document = defineComponent({
+  name: 'Document',
+  inheritAttrs: false,
+  render() {
+    return this.$slots.default
+  }
+})
+
 export const ViewWrapper = defineComponent({
   name: 'ViewWrapper',
   inheritAttrs: false,
@@ -13,7 +21,9 @@ export const View = defineComponent({
   name: 'View',
   inheritAttrs: false,
   render() {
-    return h('View', this.$attrs, this.$slots.default)
+    // console.log(this.$attrs)
+    // @ts-ignore
+    return h('View', this.$attrs, this.$slots.default())
   }
 })
 

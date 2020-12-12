@@ -1,16 +1,20 @@
 import PDFDocument from 'pdfkit'
-import fs from 'fs'
 import { createRenderer, RendererOptions, h, defineComponent, computed } from '@vue/runtime-core'
 import { baseCompile } from '@vue/compiler-core'
 import { compile } from 'vue'
 
-enum NodeTypes {
-  Text = 'Text',
-  List = 'List',
-  ListItem = 'ListItem',
-  Liew = 'View'
-}
+type NodeType =
+  'Text'
+  | 'List'
+  | 'ListItem'
+  | 'View'
 
+const nodesTypes: NodeType[] = [
+  'Text'
+  , 'List'
+  , 'ListItem'
+  , 'View'
+]
 
 export const createNodeOps = (pdf: typeof PDFDocument): RendererOptions<any, any> => ({
   patchProp: (...args) => {
@@ -23,26 +27,41 @@ export const createNodeOps = (pdf: typeof PDFDocument): RendererOptions<any, any
   },
 
   insert: (...args) => {
-    console.log(`insert: ${args}`)
+    console.log(`insert:`)
+    console.log('args[0]', args[0])
+    // console.log('args[1]', args[1])
+    console.log('args[2]', args[2])
   },
 
   remove: child => {
     console.log('remove')
   },
 
-  createElement: (tag: NodeTypes): any => {
-    console.log(`createElement ${tag}`)
-    return {}
-    // throw Error(`Unknown tag type: ${tag}`)
+  createElement: (tag: NodeType): any => {
+    if (!nodesTypes.includes(tag)) {
+      throw Error(`${tag} is not a valid tag`)
+    }
+
+    if (tag === 'Text') {
+      // pdf.text(
+    }
+    console.log(`createElement: ${tag}`)
+    return {
+      tag
+    }
   },
 
   createText: text => {
     console.log(`createText ${text}`)
+    return {
+      type: 'text',
+      value: text
+    }
     // textCache.value = text
   },
 
   createComment: text => {
-    console.log('createComment')
+    console.log(`createComment ${text}`)
   },
 
   setText: (node, text) => {
