@@ -1,25 +1,27 @@
 ## Writing a Custom Renderer - Vue.js 3
 
-Among many other cool features, Vue.js is much more modular. The project is consists of many different [packages](https://github.com/vuejs/vue-next), making it even more flexible and customizable.
+Among many other cool features, Vue.js 3 is much more modular than Vue.js 3. The project is consists of [many different packages](https://github.com/vuejs/vue-next), making it even more flexible and customizable.
 
 One of the more interesting architectural changes is the decoupled renderer and runtime. This makes it much easier to build custom renderers.
 
-## What is a custom renderer?
+## What is a Custom Renderer?
 
-A custom renderer is really just any renderer build on top of Vue's core compiler. [The DOM renderer](https://github.com/vuejs/vue-next/tree/master/packages/runtime-dom) (the only one that ships with Vue) could be considered a "custom renderer" in some ways - it doesn't have access to anything any other renderer would not have access to. 
+Vue consists of several "systems". There is the reactivity system, it's custom component system, a virtual DOM, and several others. A renderer is what takes the output of the virtual DOM and *renders* it using some UI layer. [The DOM renderer](https://github.com/vuejs/vue-next/tree/master/packages/runtime-dom) (the only one that ships with Vue) could be considered only official renderer, and as such, the reference renderer. 
 
-This can also be considered the best resource to learn to build a custom renderer - if you want to write one, you will become very well aquainted with it, since there are not too many other resources on building a Vue 3 renderer.
+So, a custom renderer is renderer that targets anything other than the DOM.
+
+The official DOM renderer can also be considered the best resource to learn to build a custom renderer - if you want to write one, you will become very well acquainted with it, since there are not many other resources on building a Vue 3 renderer.
 
 ## Existing Literature
 
-The main resources I used when learning to do this and preparing this post were:
+The main resources I used when preparing this post were:
 
 - [Vuminal](https://github.com/ycmjason/vuminal). A terminal renderer. It's source code is overly modular and kind of difficult to navigate, and I couldn't get it to do anything much more than the basic counter example in the README.
 - [Vugel](https://github.com/Planning-nl/vugel), a WebGL renderer.
-- [Vue 3 DOM Renderer source](https://github.com/vuejs/vue-next/tree/master/packages/runtime-dom). This was the most useful.
-- [React PDF](https://react-pdf.org/). This is a custom PDF renderer for React. Not Vue, but the ideas apply.
+- [Vue 3 DOM Renderer source](https://github.com/vuejs/vue-next/tree/master/packages/runtime-dom). This was the most useful resource by far.
+- [React PDF](https://react-pdf.org/). This is a custom PDF renderer for React. Not Vue, but the ideas apply, and the inspiration for this project.
 
-## What are we building?
+## What Are We Building?
 
 I decided to go with a *PDF renderer*. The goal is to take something like this:
 
@@ -49,13 +51,15 @@ export default {
 
 And get this:
 
-SS-final
+<p align="center">
+![](https://raw.githubusercontent.com/lmiller1990/vue-pdf-renderer-demo/article/screenshots/SS-final.png)
+</p>
 
-I will be using [PDFKit](https://pdfkit.org/) to produce the PDF.
+I will be using [PDFKit](https://pdfkit.org/) to produce the PDF. This is just an *example* - a fully featured PDF Renderer would be much more complex.
 
 Let's get started!
 
-## Anatomy of a custom renderer
+## Anatomy of a Custom Renderer
 
 The [runtime-core](https://github.com/vuejs/vue-next/tree/master/packages/runtime-core) gives us a hint and how to create a custom renderer:
 
@@ -71,35 +75,36 @@ const { render, createApp } = createRenderer({
 })
 ```
 
-`createRenderer` takes an argument of options. These are called *nodeOps*, short for *node operations*. Things Vue can do on nodes. This basically means CRUD actions (create, read, update, delete) and a few more. A full list can be found in [in the Vue source code](https://github.com/vuejs/vue-next/blob/master/packages/runtime-dom/src/nodeOps.ts). It's pretty important to understand what they all do. Here a list with the types and arguments.
+`createRenderer` takes one argument, an object of options. These are called *node ops*, short for *node operations*. Operations Vue can perform on nodes. This basically means CRUD actions (create, read, update, delete) and a few more. A full list including types can be found [in the Vue source code](https://github.com/vuejs/vue-next/blob/master/packages/runtime-dom/src/nodeOps.ts). It's pretty important to understand what they all do. Here a list of all the node ops.
 
 ```ts
 const nodeOps = {
-  patchProp(el: HostElement, key: string, prevValue: any, nextValue: any, isSVG?: boolean, prevChildren?: VNode<HostNode, HostElement>[], parentComponent?: ComponentInternalInstance | null, parentSuspense?: SuspenseBoundary | null, unmountChildren?: UnmountChildrenFn): void;
-  forcePatchProp?(el: HostElement, key: string): boolean;
-  insert(el: HostNode, parent: HostElement, anchor?: HostNode | null): void;
-  remove(el: HostNode): void;
-  createElement(type: string, isSVG?: boolean, isCustomizedBuiltIn?: string): HostElement;
-  createText(text: string): HostNode;
-  createComment(text: string): HostNode;
-  setText(node: HostNode, text: string): void;
-  setElementText(node: HostElement, text: string): void;
-  parentNode(node: HostNode): HostElement | null;
-  nextSibling(node: HostNode): HostNode | null;
-  querySelector?(selector: string): HostElement | null;
-  setScopeId?(el: HostElement, id: string): void;
-  cloneNode?(node: HostNode): HostNode;
-  insertStaticContent?(content: string, parent: HostElement, anchor: HostNode | null, isSVG: boolean): HostElement[];
+  patchProp(...args): void;
+  forcePatchProp?(...args): boolean;
+  insert(...args): void;
+  remove(...args): void;
+  createElement(...args): HostElement;
+  createText(...args): HostNode;
+  createComment(...args): HostNode;
+  setText(...args): void;
+  setElementText(...args): void;
+  parentNode(...args): HostElement | null;
+  nextSibling(...args): HostNode | null;
+  querySelector?(...args): HostElement | null;
+  setScopeId?(...args): void;
+  cloneNode?(...args): HostNode;
+  insertStaticContent?(...args): HostElement[];
 }
 ```
 
-We are only interested in a subset of nodeOps. The reason is our PDF renderer will be *static* - no dynamic, real time updates. For this reason we have little need for things like `querySelector` - since nodes are not moving around or otherwise dynamically changing, we don't have too much need for these. We also don't need things like `createComment` - PDFs don't have comments.
+We are only interested in a subset of node ops. The reason is our PDF renderer will be *static* - no dynamic, real time updates. For this reason we have little need for things like `querySelector` or `remove` - since nodes are not moving around or otherwise dynamically changing, we won't be needing these. We also don't need things like `createComment` - PDFs don't have comments.
 
-To figure out which nodeOps we need to implement, I'll just start writing the renderer, and filling them out as they get called.
+To figure out which node ops we need to implement, I'll just start writing the renderer, and filling them out as they get called.
 
-## Creating the renderer
+## Creating the Renderer
 
-Time to write some code. We start by calling `createRenderer`, and passing in the nodeOps. For now I am just going to `console.log` the relevant values to illustrate how and when the different operations are called.
+Time to write some code. We start by calling `createRenderer`, and passing in the node ops. For now I am just going to `console.log` the relevant values to illustrate how and when the different operations are called.
+
 
 ```ts
 import { RendererOptions } from 'vue'
@@ -152,14 +157,19 @@ export const nodeOps: RendererOptions<any, any> = {
 }
 ```
 
-I declared the "host node" *and* "host element" by passing `any, any` as the first second generic parameters to the `createRenderer` function. In a DOM renderer, the host node is `Node` and the host element is `Element`. I am not differentiating between the two here, yet. I will improve the typing later on.
+I declared the "host node" *and* "host element" by passing `<any, any>` as the first second generic parameters to the `createRenderer` function. In a DOM renderer, the host node is `Node` and the host element is `Element`. I am not differentiating between the two here, yet, but I will later on. I will also improve the type defintions later on.
 
-I made all the nodeOps that will not be used for this simple example throw an error if they are ever called (I figured out which nodeOps are and are not used by experimentation).
+I made all the node ops that are not be used for this simple example throw an error. I figured out which node ops I would need by experimentation.
 
 Let's try it out!
 
 ```ts
-import { RendererOptions, createRenderer, defineComponent, compile } from 'vue'
+import { 
+  RendererOptions, 
+  createRenderer, 
+  defineComponent, 
+  compile 
+} from 'vue'
 
 // ... 
 
@@ -190,7 +200,7 @@ insert { parent: undefined, child: 'This is some text' }
 TypeError: Object.defineProperty called on non-object
 ```
 
-We have not created a `<Text>` element yet, so we get a warning. Then we see three nodeOps executing:
+We have not created a `<Text>` element yet, so we get a warning. Then three node ops are executed:
 
 ```
 createElement: Text
@@ -198,13 +208,13 @@ createText: This is some text
 insert { parent: undefined, child: 'This is some text' }
 ```
 
-Makes sense. Vue creates the `<Text>` element, then the inner text, then calls the `insert` nodeOps to try and insert it. We then get an error that a `__vnode` property cannot be defined on an `el`.
+Makes sense. Vue creates the `<Text>` element, then the inner text, then calls the `insert` node op to try and insert it. We then get an error that a `__vnode` property cannot be defined on an `el`.
 
 ## Defining Node Types
 
-The problem is our `createElement` and `createText` nodeOps are not returning any nodes - they should be creating and returning new nodes, as the names suggest.
+The problem is our `createElement` and `createText` node ops are not returning any nodes - they should be creating and returning new nodes, as the names suggest.
 
-Let's take this opportunity to add some better types, too.
+We should make those node ops return the correct elements. I'll also improve the types.
 
 ```ts
 class PDFNode {
@@ -246,13 +256,13 @@ type PDFElements = PDFTextElement | PDFDocumentElement | PDFViewElement
 export const nodeOps: RendererOptions<PDFNodes, PDFElements> = {
   // ...
 
-  createElement: (tag: 'Text' | 'Document') => {
+  createElement: (tag: 'Text' | 'Document' | 'View') => {
     console.log(`createElement: ${tag}`)
     if (tag === 'Text') {
       return new PDFTextElement()
     }
 
-    throw Error(`Unknown tag ${tag}`)
+    throw Error(`Unsupported tag ${tag}`)
   },
 
   createText: (text: string) => {
@@ -276,7 +286,7 @@ const { createApp } = createRenderer<PDFNode, PDFElements>(nodeOps)
 const app = createApp(App).mount(root)
 ```
 
-Unlike building a DOM renderer, where all the build in node types have already been defined by a specification, there is no such thing for PDFs, so we will just define our own node types to model a PDF. 
+Unlike a DOM renderer, where all the build in node types have already been defined by a the DOM specification, there is no such thing for PDFs. I decided to define my own node types to model a PDF. 
 
 I also added `parent` and `children` keys to some of the nodes and elements. You will see why soon.
 
@@ -312,9 +322,11 @@ We don't have any way to track the parent-child relationship between the nodes. 
 
 In this case, `Text` should be red - we need to know the parent, so we can recursively climb the tree to find the nearest parent node with a color attribute set. It will also be useful if we want to support something like the flex box model, where the child's layout depends on the parent.
 
-Update `PDFNodeType` and `insert`:
+Update `insert`:
 
 ```ts
+const nodeMap: Record<string, PDFNodes | PDFElements> = {}
+
 export const nodeOps: RendererOptions<PDFNodes, PDFElements> = {
   // ...
   insert: (child, parent, anchor) => {
@@ -343,7 +355,7 @@ I added a few things:
 
 `nodeMap` looks like this:
 
-```
+```json
 {
   '325': PDFTextNode { 
     id: '325', 
@@ -360,19 +372,19 @@ I added a few things:
 }
 ```
 
-## Creating a Custom Tree Structure?
+## Creating a Custom Tree Structure
 
-You may have noticed we are more or less extracting our own tree structure from the node ops as they are executed. An alternative would be to use Vue's own internal VDOM, which can be accessed like this:
+You may have noticed we are more or less extracting our own tree structure from the node ops as they are executed. An alternative would be to use Vue's own internal virtual DOM, which can be accessed like this:
 
 ```js
 const { createApp } = createRenderer(nodeOps)
 const app = createApp(App)
-app.mount(root).$.subTree //=> access VDOM
+app.mount(root).$.subTree //=> access virtual DOM
 ```
 
-It turns out this isn't too practical, primarily because Vue's VDOM is *much* more noisy and complex than what we need for this simple example. You could consider using that, though, and it would be required if you were building any kind of real-time renderer than relies on reactivity. This is a *static* renderer, so we don't have any need for reactivity or any of the other features Vue's VDOM supports.
+It turns out this isn't too practical, primarily because Vue's virtual DOM is *much* more noisy and complex than what we need for this simple example. You could consider using that, though, and it would be required if you were building any kind of real-time renderer than relies on reactivity. In this example I am building a *static* renderer, so we don't have any need for reactivity or any of the other features Vue's virtual DOM supports.
 
-For this reason I decided to create my own simple node cache (the `nodeMap` object) which is seeded by the initial VDOM render. We still get the power of Vue's directives, like `v-for` and v-if`, as well as the ability to dynamically create a PDF using Vue's declarative template system, as we will see soon!
+For this reason I decided to create my own simple node cache (the `nodeMap` object) which is seeded by the initial virtual DOM render. We still get the power of Vue's directives, like `v-for` and v-if`, as well as the ability tocreate a PDF using Vue's declarative template system, as we will see soon!
 
 ## Custom Components
 
@@ -404,7 +416,7 @@ const App = defineComponent({
 })
 ```
 
-We are not really using Vue's component system heavily in this example, not the VDOM heavily, so the components don't do a whole lot - basically just render their children and forward the attributes, like `styles`, which we will implement soon. I also created `<View>`, which we will use soon.
+We are not really using Vue's component system heavily in this example, nor the the virtual DOM, so the components don't do a whole lot - basically just render their children and forward the attributes, like `styles`, which we will implement soon. I might like to add more complex, featureful components in the future though, so we should keep this in mind as we build.
 
 ## Rendering a PDF
 
@@ -439,7 +451,7 @@ const traverse = (node: PDFRenderable) => {
 }
 ```
 
-`PDFRenderable` represents any node in our tree - both `PDFTextNode` and the more complex `PDFElements`, which includes `PDFDocumentElement` and `PDFViewElement` at the moment. 
+`PDFRenderable` represents any node in our tree - both `PDFNodes` and the more complex `PDFElements`, which includes `PDFDocumentElement` and `PDFViewElement` at the moment. 
 
 `PDFTextNode` never has children - but `PDFElement` does. If we are traversing a `PDFElement`, we want to traverse all of the children, too. `draw` will handle interfacing with PDFKit.
 
@@ -473,9 +485,11 @@ stream.on('finish', () => {
 })
 ```
 
-Finally, we had a PDF!!
+Finally, we have a PDF!
 
-SS-2
+<p align="center">
+![](https://raw.githubusercontent.com/lmiller1990/vue-pdf-renderer-demo/article/screenshots/SS-2.png)
+</p>
 
 Now we get to have some fun and add *styles*.
 
@@ -485,7 +499,7 @@ I have decided all styles should be defined in a `styles` attribute. I have deci
 
 Update the example:
 
-```ts
+```ts {4,6}
 const App = defineComponent({
   components: { Text, View },
   render: compile(`
@@ -498,7 +512,7 @@ const App = defineComponent({
 
 Also, update `createElement` to support `<View>`:
 
-```ts
+```ts {3,9-11}
 export const nodeOps: RendererOptions<PDFNodes, PDFElements> = {
   // ...
   createElement: (tag: 'Text' | 'Document' | 'View') => {
@@ -518,7 +532,7 @@ export const nodeOps: RendererOptions<PDFNodes, PDFElements> = {
 
 Running this shows the `patchProp` node op is now called!
 
-```ts
+```sh {11-16}
 createElement: View
 createElement: Text
 insert {
@@ -529,14 +543,12 @@ insert {
   parent: PDFViewElement { id: '5973', children: [] },
   child: PDFTextElement { id: '2358', children: [ '9202' ] }
 }
-
 patchProp {
   el: PDFViewElement { id: '5973', children: [ '2358' ] },
   key: 'styles',
   prevVal: null,
   nextVal: { color: 'red' }
 }
-
 insert {
   parent: PDFDocumentElement { id: '7005', children: [] },
   child: PDFViewElement { id: '5973', children: [ '2358' ] }
@@ -545,7 +557,7 @@ insert {
 
 `patchProp` applies updates to attributes - this can include `class`, `style`, or any other attribute, including custom attributes. We need to grab `styles` and store it somewhere. We want `key` and `nextVal` in this case. We also need to update `PDFElement` to have a `styles` property.
 
-```ts
+```ts {2,11-15}
 class PDFElement extends PDFNode {
   styles: Record<string, string> = {}
 }
@@ -569,7 +581,7 @@ export const nodeOps: RendererOptions<PDFNodes, PDFElements> = {
 
 Now update `draw` to apply the style.
 
-```ts
+```ts {2-6}
 const draw = (node: PDFRenderable) => {
   if (node instanceof PDFElement) {
     if (node.styles.color) {
@@ -585,15 +597,17 @@ const draw = (node: PDFRenderable) => {
 
 Now we have red text:
 
-SS-3
+<p align="center">
+![](https://raw.githubusercontent.com/lmiller1990/vue-pdf-renderer-demo/article/screenshots/SS-3.png)
+</p>
 
 ## Supporting Default Styles
 
-We have cascading styles - anything nested under a `<View>` with `{color: 'red'}` will be red. The way PDFKit works is not exactly what we want, though - once you do `pdf.fill('red')`, everything will be red until you change the color back. What we want to do is mimic a browser - to figure out the correct color, we should recurse up the tree until we find a parent with `:styles="{color: '...'}"`. If we don't, we should apply some default color. Black seems like the obvious choice.
+We have cascading styles - anything nested under a `<View>` with `{color: 'red'}` will be red. The way PDFKit works is not exactly what we want, though - once you do `pdf.fill('red')`, everything will be red until you change the color to something else. What we want to do is mimic a browser - to figure out the correct color, we should recurse up the tree until we find a parent with `:styles="{color: '...'}"`. If we don't, we should apply some default color. Black seems like the obvious choice.
 
 This can be implememnted using a recursive `getParentStyle` function, and by setting some defaults:
 
-```ts
+```ts {1-20,23-30}
 const defaults: Record<string, any> = {
   color: 'black'
 }
@@ -631,9 +645,9 @@ const draw = (node: PDFRenderable) => {
 }
 ```
 
-Test it out with this example - let's also go ahead an use `v-for`, to make sure everything works as you'd expect when working with Vue:
+Let's make the example a bit more interesting. I will use `v-for`, to make sure everything works as it should:
 
-```ts
+```ts {3-7,9-18}
 const App = defineComponent({
   components: { Text, View },
   data() {
@@ -657,4 +671,8 @@ const App = defineComponent({
 
 It works:
 
-SS-final
+<p align="center">
+![](https://raw.githubusercontent.com/lmiller1990/vue-pdf-renderer-demo/article/screenshots/SS-final.png)
+</p>
+
+## Conclusion

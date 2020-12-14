@@ -40,7 +40,7 @@ type PDFRenderable = PDFTextNode | PDFTextElement | PDFDocumentElement
 type PDFNodes = PDFTextNode
 type PDFElements = PDFTextElement | PDFDocumentElement | PDFViewElement
 
-const nodeMap: Record<string, PDFTextNode | PDFTextElement> = {}
+const nodeMap: Record<string, PDFNodes | PDFElements> = {}
 
 function noop(fn: string): any {
   throw Error(`no-op: ${fn}`)
