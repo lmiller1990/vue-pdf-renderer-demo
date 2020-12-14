@@ -1,4 +1,4 @@
-This is a demo on how to build a customer renderer for Vue.js 3. This one renders to a PDF using PDFKit. 
+This is a demo on how to build a customer renderer for Vue.js 3. This one renders to a PDF using [PDFKit](https://pdfkit.org/). 
 
 This is not for production use, but to demonstrate how you could create a non-standard custom renderer.
 
