@@ -49,7 +49,7 @@ export default {
 
 And get this:
 
-SS-1
+SS-final
 
 I will be using [PDFKit](https://pdfkit.org/) to produce the PDF.
 
@@ -104,13 +104,15 @@ Time to write some code. We start by calling `createRenderer`, and passing in th
 ```ts
 import { RendererOptions } from 'vue'
 
-interface PDFNode {}
+class PDFNode {
+  id: string = (Math.random() * 10000).toFixed(0)
+}
 
 function noop(fn: string): any {
   throw Error(`no-op: ${fn}`)
 }
 
-export const nodeOps: RendererOptions<PDFNode, PDFNode> = {
+export const nodeOps: RendererOptions<any, any> = {
   patchProp: (el, key, prevVal, nextVal) => {
     console.log('patchProp', { el, key, prevVal, nextVal })
   },
@@ -138,19 +140,19 @@ export const nodeOps: RendererOptions<PDFNode, PDFNode> = {
     return text
   },
 
-  setText: noop('setText'),
-  setElementText: noop('setElementText'),
-  nextSibling: noop('nextSibling'),
-  querySelector: noop('querySelector'),
-  setScopeId: noop('setScopeId'), 
-  cloneNode: noop('cloneNode'),
-  insertStaticContent: noop('insertStaticContent'),
-  forcePatchProp: noop('forcePatchProp'),
-  remove: noop('remove'),
+  setText: () => noop('setText'),
+  setElementText: () => noop('setElementText'),
+  nextSibling: () => noop('nextSibling'),
+  querySelector: () => noop('querySelector'),
+  setScopeId: () => noop('setScopeId'), 
+  cloneNode: () => noop('cloneNode'),
+  insertStaticContent: () => noop('insertStaticContent'),
+  forcePatchProp: () => noop('forcePatchProp'),
+  remove: () => noop('remove'),
 }
 ```
 
-I declared `PDFNode` as the "host node" *and* "host element" by passing `PDFNode` as the first second generic parameters to the `createRenderer` function. In a DOM renderer, the host node is `Node` and the host element is `Element`. I am not differentiating between the two here.
+I declared the "host node" *and* "host element" by passing `any, any` as the first second generic parameters to the `createRenderer` function. In a DOM renderer, the host node is `Node` and the host element is `Element`. I am not differentiating between the two here, yet. I will improve the typing later on.
 
 I made all the nodeOps that will not be used for this simple example throw an error if they are ever called (I figured out which nodeOps are and are not used by experimentation).
 
@@ -159,13 +161,15 @@ Let's try it out!
 ```ts
 import { RendererOptions, createRenderer, defineComponent, compile } from 'vue'
 
+// ... 
+
 const App = defineComponent({
   render: compile(`
     <Text>This is some text</Text>
   `)
 })
 
-const root: PDFNode = {}
+const root = {}
 
 const { createApp } = createRenderer(nodeOps)
 const app = createApp(App).mount(root)
@@ -203,41 +207,62 @@ The problem is our `createElement` and `createText` nodeOps are not returning an
 Let's take this opportunity to add some better types, too.
 
 ```ts
-type PDFNodeType = 'RawText' | 'Text' | 'Document'
-
-interface PDFNode {
-  id: string
-  type: PDFNodeType
+class PDFNode {
+  id: string = (Math.random() * 10000).toFixed(0)
 }
 
-interface PDFText extends PDFNode {
-  type: 'RawText'
+class PDFTextNode extends PDFNode {
+  parent?: string
   value: string
+
+  constructor(value: string) {
+    super()
+    this.value = value
+  }
 }
 
-export const nodeOps: RendererOptions<PDFNode, PDFNode> = {
+class PDFElement extends PDFNode {}
 
+class PDFDocumentElement extends PDFElement {
+  id = 'root'
+  children: string[] = []
+}
+
+class PDFTextElement extends PDFElement {
+  parent?: string
+  children: string[] = []
+}
+
+class PDFViewElement extends PDFElement {
+  parent?: string
+  children: string[] = []
+}
+
+type PDFRenderable = PDFTextNode | PDFTextElement | PDFDocumentElement
+
+type PDFNodes = PDFTextNode
+type PDFElements = PDFTextElement | PDFDocumentElement | PDFViewElement
+
+export const nodeOps: RendererOptions<PDFNodes, PDFElements> = {
   // ...
 
-  createElement: (tag: PDFNodeType) => {
+  createElement: (tag: 'Text' | 'Document') => {
     console.log(`createElement: ${tag}`)
-    return {
-      type: tag,
-      id: (Math.random() * 100000).toFixed(0)
+    if (tag === 'Text') {
+      return new PDFTextElement()
     }
+
+    throw Error(`Unknown tag ${tag}`)
   },
 
-  createText: (text: string): PDFText => {
-    console.log(`createText: ${text}`)
-    return {
-      type: 'RawText',
-      id: (Math.random() * 100000).toFixed(0),
-      value: text 
-    }
+  createText: (text: string) => {
+    return new PDFTextNode(text)
   },
 
   // ...
 }
+
+const { createApp } = createRenderer<PDFTextNode, PDFElements>(nodeOps)
 
 const App = defineComponent({
   render: compile(`
@@ -245,13 +270,15 @@ const App = defineComponent({
   `)
 })
 
-const root: PDFNode = {
-  type: 'Document',
-  id: (Math.random() * 100000).toFixed(0)
-}
+const root = new PDFDocumentElement()
+
+const { createApp } = createRenderer<PDFNode, PDFElements>(nodeOps)
+const app = createApp(App).mount(root)
 ```
 
-Unlike building a DOM renderer, where all the build in node types have already been defined by a specification, there is no such thing for PDFs, so we will just define our own node types to model a PDF. I also added an `id` to easily keep track of nodes.
+Unlike building a DOM renderer, where all the build in node types have already been defined by a specification, there is no such thing for PDFs, so we will just define our own node types to model a PDF. 
+
+I also added `parent` and `children` keys to some of the nodes and elements. You will see why soon.
 
 Running this now works a whole lot better:
 
@@ -259,14 +286,13 @@ Running this now works a whole lot better:
 [Vue warn]: Failed to resolve component: Text
   at <App>
 createElement: Text
-createText: This is some text
 insert {
-  parent: { type: 'Text', id: '45165' },
-  child: { type: 'RawText', id: '25002', value: 'This is some text' }
+  parent: PDFTextElement { id: '831', children: [] },
+  child: PDFTextNode { id: '9528', value: 'This is some text' }
 }
 insert {
-  parent: { type: 'Document', id: '73106' },
-  child: { type: 'Text', id: '45165' }
+  parent: PDFDocumentElement { id: '9992', children: [] },
+  child: PDFTextElement { id: '831', children: [] }
 }
 ```
 
@@ -289,29 +315,14 @@ In this case, `Text` should be red - we need to know the parent, so we can recur
 Update `PDFNodeType` and `insert`:
 
 ```ts
-interface PDFNode {
-  id: string
-  type: PDFNodeType
-  parent?: string
-  children: string[]
-}
-
-interface PDFText extends PDFNode {
-  type: 'RawText'
-  value: string
-}
-
-const nodeMap: Record<string, PDFNode> = {}
-
-export const nodeOps: RendererOptions<PDFNode, PDFNode> = {
+export const nodeOps: RendererOptions<PDFNodes, PDFElements> = {
   // ...
   insert: (child, parent, anchor) => {
-    console.log('insert', { parent, child })
-    if (parent.type === 'Document') {
-      nodeMap['root'] = parent
+    if (parent instanceof PDFDocumentElement) {
+      nodeMap[parent.id] = parent
     }
 
-    if (!(child.id in nodeMap)) {
+    if (! (child.id in nodeMap)) {
       nodeMap[child.id] = child
     }
 
@@ -319,66 +330,32 @@ export const nodeOps: RendererOptions<PDFNode, PDFNode> = {
     child.parent = parent.id
   },
 
-  createElement: (tag: PDFNodeType) => {
-    console.log(`createElement: ${tag}`)
-    return {
-      type: tag,
-      id: (Math.random() * 100000).toFixed(0),
-      children: []
-    }
-  },
-
-  createText: (text: string): PDFText => {
-    console.log(`createText: ${text}`)
-    return {
-      type: 'RawText',
-      id: (Math.random() * 100000).toFixed(0),
-      value: text,
-      children: []
-    }
-  },
   // ...
 }
-
-const root: PDFNode = {
-  type: 'Document',
-  id: (Math.random() * 100000).toFixed(0),
-  children: []
-}
-
-console.log(nodeMap)
 ```
 
 I added a few things:
 
-- `const nodeMap: Record<string, PDFNode> = {}`. This is to keep track of the nodes - it turns out it'll be useful to have our own cache of the nodes for later.
-- `parent` and `children`. I typed them as `string`: instead of doing something like `children.push(child)` and `child.parent = parent`, saving the entire node, it's just as convinient to use the `id`. We can easily get the node from the `nodeMap` when we need it.
+
+- `const nodeMap: Record<string, PDFTextNode | PDFTextElement> = {}`. This is to keep track of the nodes - it turns out it'll be useful to have our own cache of the nodes for later.
+- `nodeMap['root']` to easily access the top level `PDFDocumentElement` node.
+- Assigning values to `parent` and `children`. I am keeping track of these by the `id`, not a reference to the actual node. We can easily get the node from the `nodeMap` when we need it.
 
 `nodeMap` looks like this:
 
 ```
 {
-  "9572": {
-    "type": "RawText",
-    "id": "9572",
-    "value": "This is some text",
-    "children": [],
-    "parent": "18279"
+  '325': PDFTextNode { 
+    id: '325', 
+    value: 'This is some text' 
   },
-  "18279": {
-    "type": "Text",
-    "id": "18279",
-    "children": [
-      "9572"
-    ],
-    "parent": "33177"
+  '6805': PDFTextElement { 
+    id: '6805', 
+    children: [ '325' ] 
   },
-  "root": {
-    "type": "Document",
-    "id": "33177",
-    "children": [
-      "18279"
-    ]
+  root: PDFDocumentElement { 
+    id: '8306', 
+    children: [ '6805' ] 
   }
 }
 ```
@@ -395,11 +372,11 @@ app.mount(root).$.subTree //=> access VDOM
 
 It turns out this isn't too practical, primarily because Vue's VDOM is *much* more noisy and complex than what we need for this simple example. You could consider using that, though, and it would be required if you were building any kind of real-time renderer than relies on reactivity. This is a *static* renderer, so we don't have any need for reactivity or any of the other features Vue's VDOM supports.
 
-For this reason I decided to create my own simple node cache (the `nodeMap` object) which is seeded by the initial VDOM render. We still get the power of Vue's directives, like `v-for` and v-if`, as well as the ability to dynamically create a PDF using Vue's declarative template system.
+For this reason I decided to create my own simple node cache (the `nodeMap` object) which is seeded by the initial VDOM render. We still get the power of Vue's directives, like `v-for` and v-if`, as well as the ability to dynamically create a PDF using Vue's declarative template system, as we will see soon!
 
 ## Custom Components
 
-The console still has the warnings about `<Text>` and `<View>` components not existing.
+The console still has the warnings about `<Text>` and `<View>` components not existing. Let's make those.
 
 ```ts
 import { h } from 'vue'
@@ -447,4 +424,237 @@ This means we need to somehow go from the `nodeMap` to this. The first step will
 Let's start with a `traverse` function:
 
 ```ts
+const draw = (node: PDFRenderable) => {
+  // ...
+}
+
+const traverse = (node: PDFRenderable) => {
+  if (node instanceof PDFElement) {
+
+    for (const child of node.children) {
+      draw(nodeMap[child])
+      traverse(nodeMap[child])
+    }
+  }
+}
 ```
+
+`PDFRenderable` represents any node in our tree - both `PDFTextNode` and the more complex `PDFElements`, which includes `PDFDocumentElement` and `PDFViewElement` at the moment. 
+
+`PDFTextNode` never has children - but `PDFElement` does. If we are traversing a `PDFElement`, we want to traverse all of the children, too. `draw` will handle interfacing with PDFKit.
+
+Now add `draw`:
+
+```ts
+const draw = (node: PDFRenderable) => {
+  if (node instanceof PDFTextNode) {
+    pdf.text(node.value)
+  }
+}
+```
+
+Finally, write the PDF to the filesystem using `fs`
+
+```ts
+import PDFDocument from 'pdfkit'
+import fs from 'fs'
+
+const pdf = new PDFDocument()
+const stream = pdf.pipe(fs.createWriteStream('./goal.pdf'))
+
+// ... 
+
+const rootNode = nodeMap['root']
+traverse(rootNode)
+
+pdf.end()
+stream.on('finish', () => {
+  console.log('Wrote to file.pdf.')
+})
+```
+
+Finally, we had a PDF!!
+
+SS-2
+
+Now we get to have some fun and add *styles*.
+
+## Adding Styles
+
+I have decided all styles should be defined in a `styles` attribute. I have decided to only support a limited subset of CSS, much like react-native and [`react-pdf`](https://react-pdf.org/styling#valid-css-properties).
+
+Update the example:
+
+```ts
+const App = defineComponent({
+  components: { Text, View },
+  render: compile(`
+    <View :styles="{color: 'red'}">
+      <Text>This is some text</Text>
+    </View>
+  `)
+})
+```
+
+Also, update `createElement` to support `<View>`:
+
+```ts
+export const nodeOps: RendererOptions<PDFNodes, PDFElements> = {
+  // ...
+  createElement: (tag: 'Text' | 'Document' | 'View') => {
+    console.log(`createElement: ${tag}`)
+    if (tag === 'Text') {
+      return new PDFTextElement()
+    }
+
+    if (tag === 'View') {
+      return new PDFViewElement()
+    }
+
+    throw Error(`Unknown tag ${tag}`)
+  },
+}
+```
+
+Running this shows the `patchProp` node op is now called!
+
+```ts
+createElement: View
+createElement: Text
+insert {
+  parent: PDFTextElement { id: '2358', children: [] },
+  child: PDFTextNode { id: '9202', value: 'This is some text' }
+}
+insert {
+  parent: PDFViewElement { id: '5973', children: [] },
+  child: PDFTextElement { id: '2358', children: [ '9202' ] }
+}
+
+patchProp {
+  el: PDFViewElement { id: '5973', children: [ '2358' ] },
+  key: 'styles',
+  prevVal: null,
+  nextVal: { color: 'red' }
+}
+
+insert {
+  parent: PDFDocumentElement { id: '7005', children: [] },
+  child: PDFViewElement { id: '5973', children: [ '2358' ] }
+}
+```
+
+`patchProp` applies updates to attributes - this can include `class`, `style`, or any other attribute, including custom attributes. We need to grab `styles` and store it somewhere. We want `key` and `nextVal` in this case. We also need to update `PDFElement` to have a `styles` property.
+
+```ts
+class PDFElement extends PDFNode {
+  styles: Record<string, string> = {}
+}
+
+// ...
+
+export const nodeOps: RendererOptions<PDFNodes, PDFElements> = {
+  // ...
+
+  patchProp: (el, key, prevVal, nextVal: Record<string, any>) => {
+    if (nextVal && key === 'styles') {
+      for (const [attr, value] of Object.entries(nextVal)) {
+        el.styles[attr] = value
+      }
+    }
+  },
+
+  // ...
+}
+```
+
+Now update `draw` to apply the style.
+
+```ts
+const draw = (node: PDFRenderable) => {
+  if (node instanceof PDFElement) {
+    if (node.styles.color) {
+      pdf.fill(node.styles.color)
+    }
+  }
+
+  if (node instanceof PDFTextNode) {
+    pdf.text(node.value)
+  }
+}
+```
+
+Now we have red text:
+
+SS-3
+
+## Supporting Default Styles
+
+We have cascading styles - anything nested under a `<View>` with `{color: 'red'}` will be red. The way PDFKit works is not exactly what we want, though - once you do `pdf.fill('red')`, everything will be red until you change the color back. What we want to do is mimic a browser - to figure out the correct color, we should recurse up the tree until we find a parent with `:styles="{color: '...'}"`. If we don't, we should apply some default color. Black seems like the obvious choice.
+
+This can be implememnted using a recursive `getParentStyle` function, and by setting some defaults:
+
+```ts
+const defaults: Record<string, any> = {
+  color: 'black'
+}
+
+const getParentStyle = (attr: string, parent: PDFRenderable): string => {
+  // we are at the root <Document> element.
+  if (parent instanceof PDFDocumentElement) {
+    return defaults[attr]
+  }
+
+  // check parent for style.
+  if (parent instanceof PDFElement) {
+    if (parent.styles[attr]) {
+      return parent.styles[attr]
+    }
+  }
+
+  // recurse up the tree.
+  return getParentStyle(attr, nodeMap[parent.parent!])
+}
+
+const draw = (node: PDFRenderable) => {
+  if (node instanceof PDFElement) {
+    if (node.styles.color) {
+      pdf.fill(node.styles.color)
+    } else {
+      // @ts-ignore
+      pdf.fill(getParentStyle('color', nodeMap[node.parent]))
+    }
+  }
+
+  if (node instanceof PDFTextNode) {
+    pdf.text(node.value)
+  }
+}
+```
+
+Test it out with this example - let's also go ahead an use `v-for`, to make sure everything works as you'd expect when working with Vue:
+
+```ts
+const App = defineComponent({
+  components: { Text, View },
+  data() {
+    return {
+      colors: ['red', 'blue', 'green']
+    }
+  },
+  render: compile(`
+    <View>
+      <View :styles="{color: 'red'}">
+        <Text v-for="color in colors" :styles="{color}">
+          {{ color }}
+        </Text>
+      </View>
+      <Text>Default</Text>
+      <Text :styles="{color: 'yellow'}">Yellow</Text>
+    </View>
+  `)
+})
+```
+
+It works:
+
+SS-final

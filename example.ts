@@ -97,7 +97,6 @@ const renderTemplate = () => {
   const pdf = new PDFDocument()
   pdf.pipe(fs.createWriteStream('./goal.pdf'))
 
-
   const nodeOps = createNodeOps()
   const { createApp } = createRenderer(nodeOps)
 
@@ -106,7 +105,6 @@ const renderTemplate = () => {
   const vm = app.mount(ParentNode)
   console.log(vm.$.subTree)
 
-  console.log(nodeMap)
 
   const getParentStyle = (attr: string, parent?: PDFNode): string => {
     if (!parent) {

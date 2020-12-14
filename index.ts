@@ -38,11 +38,14 @@ export const createNodeOps = (): RendererOptions<PDFNode, PDFNode> => ({
   // ...
   patchProp: (el, key: SupportedAttrs, prevVal, nextVal) => {
     if (nextVal && key === 'styles') {
-      el.styles = nextVal
+      for (const [attr, value] of Object.entries(nextVal)) {
+        el.styles[attr] = value
+      }
     }
   },
 
   insert: (child, parent, anchor) => {
+    console.log({ child, parent })
     if (parent.type === 'Document') {
       nodeMap['root'] = parent
     }

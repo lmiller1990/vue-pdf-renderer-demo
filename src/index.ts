@@ -1,42 +1,44 @@
+import PDFDocument from 'pdfkit'
+import fs from 'fs'
 import { h, RendererOptions, createRenderer, defineComponent, compile } from 'vue'
 
-type PDFNodeType = 'RawText' | 'Text' | 'Document'
+class PDFNode {
+  id: string = (Math.random() * 10000).toFixed(0)
+}
 
-class PDFTextNode {
-  id: string
+class PDFTextNode extends PDFNode {
   parent?: string
   value: string
 
   constructor(value: string) {
-    this.id = (Math.random() * 10000).toFixed(0)
+    super()
     this.value = value
   }
 }
 
-class PDFElement {}
+class PDFElement extends PDFNode {
+  styles: Record<string, string> = {}
+}
 
 class PDFDocumentElement extends PDFElement {
-  id: string
+  id = 'root'
   children: string[] = []
-
-  constructor() {
-    super()
-    this.id = (Math.random() * 10000).toFixed(0)
-  }
 }
 
 class PDFTextElement extends PDFElement {
-  id: string
   parent?: string
   children: string[] = []
+}
 
-  constructor() {
-    super()
-    this.id = (Math.random() * 10000).toFixed(0)
-  }
+class PDFViewElement extends PDFElement {
+  parent?: string
+  children: string[] = []
 }
 
 type PDFRenderable = PDFTextNode | PDFTextElement | PDFDocumentElement
+
+type PDFNodes = PDFTextNode
+type PDFElements = PDFTextElement | PDFDocumentElement | PDFViewElement
 
 const nodeMap: Record<string, PDFTextNode | PDFTextElement> = {}
 
@@ -57,32 +59,35 @@ const View = createPDFComponent('View')
 const Text = createPDFComponent('Text')
 const Document = createPDFComponent('Document')
 
-export const nodeOps: RendererOptions<PDFTextNode, PDFTextElement | PDFDocumentElement> = {
-  patchProp: (el, key, prevVal, nextVal) => {
-    console.log('patchProp', { el, key, prevVal, nextVal })
+export const nodeOps: RendererOptions<PDFNodes, PDFElements> = {
+  patchProp: (el, key, preaVal, nextVal: Record<string, any>) => {
+    if (nextVal && key === 'styles') {
+      for (const [attr, value] of Object.entries(nextVal)) {
+        el.styles[attr] = value
+      }
+    }
   },
 
   insert: (child, parent, anchor) => {
-    console.log('insert', { parent, child })
     if (parent instanceof PDFDocumentElement) {
-      nodeMap['root'] = parent
+      nodeMap[parent.id] = parent
     }
 
-    if (!(child.id in nodeMap)) {
+    if (! (child.id in nodeMap)) {
       nodeMap[child.id] = child
     }
 
     parent.children.push(child.id)
-
-    if (child.parent) {
-      child.parent = parent.id
-    }
+    child.parent = parent.id
   },
 
-  createElement: (tag: 'Text' | 'Document') => {
-    console.log(`createElement: ${tag}`)
+  createElement: (tag: 'Text' | 'Document' | 'View') => {
     if (tag === 'Text') {
       return new PDFTextElement()
+    }
+
+    if (tag === 'View') {
+      return new PDFViewElement()
     }
 
     throw Error(`Unknown tag ${tag}`)
@@ -93,7 +98,6 @@ export const nodeOps: RendererOptions<PDFTextNode, PDFTextElement | PDFDocumentE
   },
 
   parentNode: node => {
-    console.log('parentNode')
     return null
   },
 
@@ -111,27 +115,70 @@ export const nodeOps: RendererOptions<PDFTextNode, PDFTextElement | PDFDocumentE
 
 const App = defineComponent({
   components: { Text, View },
+  data() {
+    return {
+      colors: ['red', 'blue', 'green']
+    }
+  },
   render: compile(`
-    <Text>This is some text</Text>
+    <View>
+      <View :styles="{color: 'red'}">
+        <Text v-for="color in colors" :styles="{color}">
+          {{ color }}
+        </Text>
+      </View>
+      <Text>Default</Text>
+      <Text :styles="{color: 'yellow'}">Yellow</Text>
+    </View>
   `)
 })
 
 const root = new PDFDocumentElement()
 
-const { createApp } = createRenderer(nodeOps)
+const { createApp } = createRenderer<PDFNode, PDFElements>(nodeOps)
 const app = createApp(App).mount(root)
 delete nodeMap['root']['_vnode']
 delete nodeMap['root']['__vue_app__']
-console.log(JSON.stringify(nodeMap, null ,2))
 
-const draw = (node: PDFRenderable) => {
-  if (node instanceof PDFTextNode) {
-    console.log(node.value)
-    // console.log(`Writing: ${node.value}`)
-    // pdf.text(node.value)
-  }
+const pdf = new PDFDocument()
+pdf.fontSize(50)
+const stream = pdf.pipe(fs.createWriteStream('./file.pdf'))
+
+const defaults: Record<string, any> = {
+  color: 'black'
 }
 
+const getParentStyle = (attr: string, parent: PDFRenderable): string => {
+  // we are at the root <Document> element.
+  if (parent instanceof PDFDocumentElement) {
+    return defaults[attr]
+  }
+
+  // check parent for style.
+  if (parent instanceof PDFElement) {
+    if (parent.styles[attr]) {
+      return parent.styles[attr]
+    }
+  }
+
+  // recurse up the tree.
+  return getParentStyle(attr, nodeMap[parent.parent!])
+}
+
+const draw = (node: PDFRenderable) => {
+  if (node instanceof PDFElement) {
+    if (node.styles.color) {
+      pdf.fill(node.styles.color)
+    } else {
+      // @ts-ignore
+      pdf.fill(getParentStyle('color', nodeMap[node.parent]))
+    }
+  }
+
+  if (node instanceof PDFTextNode) {
+    pdf.text(node.value)
+  }
+}
 
 const traverse = (node: PDFRenderable) => {
   if (node instanceof PDFElement) {
@@ -143,5 +190,12 @@ const traverse = (node: PDFRenderable) => {
   }
 }
 
+console.log(nodeMap)
+
 const rootNode = nodeMap['root']
+
 traverse(rootNode)
+pdf.end()
+stream.on('finish', () => {
+  console.log('Wrote to file.pdf.')
+})
