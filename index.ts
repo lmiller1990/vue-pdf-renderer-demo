@@ -42,10 +42,6 @@ export const createNodeOps = (): RendererOptions<PDFNode, PDFNode> => ({
     }
   },
 
-  forcePatchProp: (el: any, key: string) => {
-    return false
-  },
-
   insert: (child, parent, anchor) => {
     if (parent.type === 'Document') {
       nodeMap['root'] = parent
@@ -55,18 +51,11 @@ export const createNodeOps = (): RendererOptions<PDFNode, PDFNode> => ({
       nodeMap[child.id] = child
     }
 
-    console.log(`Setting el ${child.type} (${child.id}) parent to ${parent.id}`)
     parent.children.push(child.id)
     child.parent = parent.id
   },
 
-  remove: child => {
-    console.log('remove')
-  },
-
   createElement: (tag: NodeType): any => {
-    console.log(`createElement: ${tag}`)
-
     if (!nodesTypes.includes(tag)) {
       throw Error(`${tag} is not a valid tag`)
     }
@@ -90,37 +79,46 @@ export const createNodeOps = (): RendererOptions<PDFNode, PDFNode> => ({
     }
   },
 
+  parentNode: node => {
+    return node.parent ? nodeMap[node.parent] : null
+  },
+
   createComment: text => {
     throw Error(`no-op`)
   },
 
   setText: (node, text) => {
+    throw Error(`no-op`)
   },
 
   setElementText: (el, text) => {
+    throw Error(`no-op`)
   },
-
-  parentNode: node => {
-    return node.parent ? nodeMap[node.parent] : null
-  },
-
   nextSibling: node => {
     throw Error(`no-op`)
   },
 
   querySelector: selector => {
-    // no-op
-    return null
+    throw Error(`no-op`)
   },
 
   setScopeId(el, id) {
+    throw Error(`no-op`)
   },
 
   cloneNode(el) {
-    return {...el}
+    throw Error(`no-op`)
   },
 
   insertStaticContent(content, parent, anchor, isSVG) {
-    return []
+    throw Error(`no-op`)
+  },
+
+  forcePatchProp: (el: any, key: string) => {
+    throw Error(`no-op`)
+  },
+
+  remove: child => {
+    throw Error(`no-op`)
   }
 })

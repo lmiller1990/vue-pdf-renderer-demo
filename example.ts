@@ -62,12 +62,20 @@ const AppRenderFn = defineComponent({
 const AppTemplate = defineComponent({
   ...common,
   name: 'AppTemplate',
+  data() {
+    return {
+      colors: ['red', 'blue', 'green']
+    }
+  },
+        // <Text :styles="{color: 'blue'}">Blue</Text>
+        // <Text>Red</Text>
+        // <Text :styles="{color: 'green'}">Green</Text>
   render: compile(`
     <View>
       <View :styles="{color: 'red'}">
-        <Text :styles="{color: 'blue'}">Blue</Text>
-        <Text>Red</Text>
-        <Text :styles="{color: 'green'}">Green</Text>
+        <Text v-for="color in colors" :styles="{color}">
+          {{ color }}
+        </Text>
       </View>
       <Text>Default</Text>
       <Text :styles="{color: 'yellow'}">Yellow</Text>
@@ -95,7 +103,8 @@ const renderTemplate = () => {
 
   const app = createApp(AppTemplate)
   // const app = createApp(AppRenderFn)
-  app.mount(ParentNode)
+  const vm = app.mount(ParentNode)
+  console.log(vm.$.subTree)
 
   console.log(nodeMap)
 
