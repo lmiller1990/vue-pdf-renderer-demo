@@ -20,4 +20,6 @@ Currently this:
 </View>
 ```
 
+Renders this:
+
 ![](./screenshots/SS-final.png)
