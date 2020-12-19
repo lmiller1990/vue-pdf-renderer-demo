@@ -11,8 +11,8 @@ Currently this:
 ```html
 <View>
   <View :styles="{color: 'red'}">
-    <Text :styles="{color: 'blue'}">Blue</Text>
     <Text>Red</Text>
+    <Text :styles="{color: 'blue'}">Blue</Text>
     <Text :styles="{color: 'green'}">Green</Text>
   </View>
   <Text>Default</Text>
