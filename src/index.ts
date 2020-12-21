@@ -1,26 +1,15 @@
 import {
-  h,
   defineComponent,
   compile
 } from 'vue'
 
-import {
-  PDFDocumentElement,
-  Tag
-} from './elements'
+import { PDFDocumentElement } from './elements'
+
+import { 
+  Text, 
+  View
+} from './components'
 import { createApp } from './renderer'
-
-const createPDFComponent = (tag: Tag) =>
-  defineComponent({
-    inheritAttrs: false,
-    name: tag,
-    render() {
-      return h(tag, this.$attrs, this.$slots?.default?.() || [])
-    }
-  })
-
-const View = createPDFComponent('View')
-const Text = createPDFComponent('Text')
 
 const App = defineComponent({
   components: { Text, View },
