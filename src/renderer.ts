@@ -39,14 +39,14 @@ export const createApp = ((...args) => {
   // https://github.com/vuejs/vue-next/blob/3626ff07fe5107080c52e85018070562c84b796e/packages/runtime-dom/src/index.ts#L61
   app.mount = (doc: PDFDocumentElement): any => {
     const proxy = mount(doc)
-    renderToPDF(pdf, nodeMap)
+    renderToPDF(doc, pdf, nodeMap)
     return proxy
   }
   return app
 }) as CreateAppFunction<PDFElement>
 
-function renderToPDF(pdf: typeof PDFDocument, nodeMap: NodeMap) {
-  const stream = pdf.pipe(fs.createWriteStream('./file.pdf'))
+function renderToPDF(doc: PDFDocumentElement, pdf: typeof PDFDocument, nodeMap: NodeMap) {
+  const stream = pdf.pipe(fs.createWriteStream(doc.filename))
 
   const draw = (node: PDFRenderable) => {
     if (node instanceof PDFElement) {

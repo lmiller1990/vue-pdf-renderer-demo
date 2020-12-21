@@ -43,6 +43,12 @@ export class PDFElement extends PDFNode {
 export class PDFDocumentElement extends PDFElement {
   id = 'root'
   styles: PDFStyleSheet = {...defaults}
+  filename: string
+
+  constructor(tag: Tag, options: { filename: string }) {
+    super(tag)
+    this.filename = options.filename
+  }
 }
 
 export class PDFTextElement extends PDFElement {}

@@ -41,4 +41,4 @@ const App = defineComponent({
 })
 
 const app = createApp(App)
-app.mount(new PDFDocumentElement('Document'))
+app.mount(new PDFDocumentElement('Document', { filename: './file.pdf' }))
