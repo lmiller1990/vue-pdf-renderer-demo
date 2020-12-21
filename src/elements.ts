@@ -26,7 +26,7 @@ export class PDFTextNode extends PDFNode {
   } 
 }
 
-export type Tag = 'View' | 'Document' | 'Text'
+export type Tag = 'View' | 'Document' | 'Text' | 'Image'
 
 // PDFElement is the main class of Elements you will use.
 // The difference between PDFNode and PDFElement is PDFElements can have children.
@@ -51,10 +51,25 @@ export class PDFDocumentElement extends PDFElement {
   }
 }
 
+export class PDFImageElement extends PDFElement {
+  _src: string = ''
+  width?: number
+  height?: number
+
+  get src(): string {
+    if (this._src === '') {
+      throw Error(`src must be set to use <Image>`)
+    }
+
+    return this._src
+  }
+}
+
 export class PDFTextElement extends PDFElement {}
 export class PDFViewElement extends PDFElement {}
 
 export type PDFRenderable = PDFTextNode 
+  | PDFImageElement
   | PDFTextElement 
   | PDFViewElement
   | PDFDocumentElement
@@ -62,7 +77,8 @@ export type PDFRenderable = PDFTextNode
 export type PDFNodes = PDFTextNode
 
 export type PDFElements =
-  PDFTextElement
+  PDFImageElement
+  | PDFTextElement
   | PDFViewElement
   | PDFDocumentElement 
 

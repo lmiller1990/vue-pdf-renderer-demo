@@ -12,4 +12,5 @@ const createPDFComponent = (tag: Tag) =>
 
 export const View = createPDFComponent('View')
 export const Text = createPDFComponent('Text')
+export const Image = createPDFComponent('Image')
 export const Document = createPDFComponent('Document')

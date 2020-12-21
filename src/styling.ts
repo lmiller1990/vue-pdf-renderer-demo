@@ -8,7 +8,7 @@ export type StyleRule =
 export const styleRules: StyleRule[] = ['align', 'color', 'fontSize']
 
 interface DefaultStyleSheet {
-  align: 'left'
+  align: 'left' | 'right' | 'center'
   color: string
   fontSize: number
 }
@@ -18,7 +18,7 @@ export type PDFStyleSheet = Partial<DefaultStyleSheet>
 export const defaults: DefaultStyleSheet = {
   align: 'left',
   color: 'black',
-  fontSize: 14
+  fontSize: 10
 }
 
 interface DefaultStyleSheet {

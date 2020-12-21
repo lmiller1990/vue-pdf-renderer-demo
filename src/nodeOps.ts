@@ -6,6 +6,7 @@ import {
   NodeMap,
   PDFDocumentElement,
   PDFElements,
+  PDFImageElement,
   PDFNodes,
   PDFTextElement,
   PDFTextNode,
@@ -19,7 +20,21 @@ function noop(fn: string): any {
 
 export function createNodeOps(nodeMap: NodeMap): RendererOptions<PDFNodes, PDFElements> {
   return {
-    patchProp: (el, key, preaVal, nextVal: Record<string, any>) => {
+    patchProp: (el, key, preaVal, nextVal) => {
+      if (el instanceof PDFImageElement && nextVal) {
+        if (key === 'src') {
+          el._src = nextVal
+        }
+
+        if (key === 'width') {
+          el.width = nextVal
+        }
+
+        if (key === 'height') {
+          el.height = nextVal
+        }
+      }
+
       if (nextVal && key === 'styles') {
         for (const [attr, value] of Object.entries(nextVal)) {
           el.styles[attr] = value
@@ -41,6 +56,10 @@ export function createNodeOps(nodeMap: NodeMap): RendererOptions<PDFNodes, PDFEl
     },
 
     createElement: (tag: Tag) => {
+      if (tag === 'Image') {
+        return new PDFImageElement(tag)
+      }
+
       if (tag === 'Text') {
         return new PDFTextElement(tag)
       }

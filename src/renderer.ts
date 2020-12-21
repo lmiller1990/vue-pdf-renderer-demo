@@ -17,7 +17,8 @@ import {
   PDFNode,
   PDFRenderable,
   PDFTextNode,
-  NodeMap
+  NodeMap,
+  PDFImageElement
 } from './elements'
 import { createNodeOps } from './nodeOps'
 
@@ -57,9 +58,21 @@ function renderToPDF(doc: PDFDocumentElement, pdf: typeof PDFDocument, nodeMap: 
 
     if (node instanceof PDFTextNode) {
       const align = getStyleValue('align', node, nodeMap)
-      pdf.text(node.value, {
-        align
+      pdf.text(node.value.trim(), {
+        align,
+        indent: 0,
       })
+    }
+
+    if (node instanceof PDFImageElement) {
+      const align = getStyleValue('align', node, nodeMap)!
+      // Center it nicely. align: center option in PDFKit appears not to work at all.
+      if (align === 'center' && node.width) {
+        pdf.image(node.src, (pdf.page.width / 2) - (node.width / 2), undefined, { width: node.width })
+      } else {
+        // Just do whatever? TODO: Figure out reasonable defaults.
+        pdf.image(node.src)
+      }
     }
   }
 
@@ -72,9 +85,6 @@ function renderToPDF(doc: PDFDocumentElement, pdf: typeof PDFDocument, nodeMap: 
       }
     }
   }
-
-  // delete nodeMap['root']['_vnode']
-  // delete nodeMap['root']['__vue_app__']
 
   const applyStyle = (rule: StyleRule, node: PDFElements) => {
     const value = getStyleValue(rule, node, nodeMap)
@@ -96,6 +106,11 @@ function renderToPDF(doc: PDFDocumentElement, pdf: typeof PDFDocument, nodeMap: 
 
   const rootNode = nodeMap['root']
   traverse(rootNode)
+
+  delete nodeMap['root']['_vnode']
+  delete nodeMap['root']['__vue_app__']
+
+  console.log(nodeMap)
 
   pdf.end()
   stream.on('finish', () => {
