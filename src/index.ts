@@ -29,6 +29,13 @@ const App = defineComponent({
       <Text :styles="{color: 'yellow'}">Yellow</Text>
       <Text :styles="{fontSize: 15}">Font size 15</Text>
       <Text :styles="{fontSize: 30}">Font size 30</Text>
+      <View :styles="{align: 'center'}">
+        <View :styles="{align: 'left'}">
+          <Text>Left</Text>
+        </View>
+        <Text :styles="{fontSize: 45}">Center</Text>
+        <Text :styles="{align: 'right'}">Right</Text>
+      </View>
     </View>
   `)
 })

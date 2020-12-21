@@ -56,7 +56,10 @@ function renderToPDF(pdf: typeof PDFDocument, nodeMap: NodeMap) {
     }
 
     if (node instanceof PDFTextNode) {
-      pdf.text(node.value)
+      const align = getStyleValue('align', node, nodeMap)
+      pdf.text(node.value, {
+        align
+      })
     }
   }
 

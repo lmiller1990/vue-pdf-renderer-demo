@@ -1,9 +1,14 @@
 import { PDFRenderable, NodeMap } from './elements'
 
-export type StyleRule = 'color' | 'fontSize'
-export const styleRules: StyleRule[] = ['color', 'fontSize']
+export type StyleRule = 
+  'align' 
+  | 'color' 
+  | 'fontSize' 
+
+export const styleRules: StyleRule[] = ['align', 'color', 'fontSize']
 
 interface DefaultStyleSheet {
+  align: 'left'
   color: string
   fontSize: number
 }
@@ -11,6 +16,7 @@ interface DefaultStyleSheet {
 export type PDFStyleSheet = Partial<DefaultStyleSheet>
 
 export const defaults: DefaultStyleSheet = {
+  align: 'left',
   color: 'black',
   fontSize: 14
 }
