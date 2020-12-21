@@ -4,13 +4,17 @@ export type StyleRule =
   'align' 
   | 'color' 
   | 'fontSize' 
+  | 'marginBottom'
+  | 'marginTop'
 
-export const styleRules: StyleRule[] = ['align', 'color', 'fontSize']
+export const styleRules: StyleRule[] = ['align', 'color', 'fontSize', 'marginBottom', 'marginTop']
 
 interface DefaultStyleSheet {
   align: 'left' | 'right' | 'center'
   color: string
   fontSize: number
+  marginBottom: number
+  marginTop: number
 }
 
 export type PDFStyleSheet = Partial<DefaultStyleSheet>
@@ -18,7 +22,9 @@ export type PDFStyleSheet = Partial<DefaultStyleSheet>
 export const defaults: DefaultStyleSheet = {
   align: 'left',
   color: 'black',
-  fontSize: 10
+  fontSize: 10,
+  marginBottom: 0,
+  marginTop: 0,
 }
 
 interface DefaultStyleSheet {
@@ -31,7 +37,7 @@ export function getStyleValue<T extends StyleRule>(
   node: PDFRenderable, 
   nodeMap: NodeMap
 ): Partial<DefaultStyleSheet>[T] {
-  if (node.styles[rule]) {
+  if (node.styles[rule] !== undefined) {
     return node.styles[rule]
    } 
 

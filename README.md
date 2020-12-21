@@ -30,8 +30,10 @@ See `src/index.ts` for example usage.
 
 A very limited subset of styles are supported. The goal is to make authoring a PDF Document a similar experience to author a web app with Vue.
 
-| Rule  | Type | Example | Default |
-| ---- | ------- | ----- | ---- |
-| color | string | 'blue', 'red' | 'black' |
-| fontSize  | integer  | 10, 15, 45 | 10 |
-| align  | 'left', 'right', 'center'  | See type | 'left' | 
+| Rule  | Type | Example | Default | Notes |
+| ---- | ------- | ----- | ---- | ---- |
+| color | string | 'blue', 'red' | 'black' | |
+| fontSize  | integer  | 10, 15, 45 | 10 | |
+| align  | 'left', 'right', 'center'  | See type | 'left' | Only applied to <Text>. <Image> alignment is WIP.
+| marginTop  | number | 0, 1, 2 | 0 | unit is line height. marginTop: 1 is margin of 1 line height.
+| marginBottom  | number | 0, 1, 2 | 0 |  |

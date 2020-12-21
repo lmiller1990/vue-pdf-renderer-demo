@@ -24,7 +24,13 @@ const styles: Record<string, PDFStyleSheet> = {
     fontSize: 15
   },
   text: {
-    fontSize: 10
+    fontSize: 10,
+    marginTop: 1,
+  },
+  image: {
+    align: 'center',
+    marginTop: 2,
+    marginBottom: 2
   }
 }
 
@@ -51,7 +57,7 @@ const App = defineComponent({
       <Image 
         src="./images/img.jpg" 
         width="300"
-        :styles="{align: 'center'}"
+        :styles="styles.image"
       />
 
       <View>
@@ -60,8 +66,8 @@ const App = defineComponent({
         </Text>
       </View>
 
-      <View>
-        <Text :styles="styles.text">
+      <View :styles="styles.text">
+        <Text>
           En un lugar de la Mancha, de cuyo nombre no quiero acordarme, no ha
           mucho tiempo que vivía un hidalgo de los de lanza en astillero, adarga
           antigua, rocín flaco y galgo corredor. Una olla de algo más vaca que
@@ -80,6 +86,27 @@ const App = defineComponent({
           conjeturas verosímiles se deja entender que se llama Quijana; pero esto
           importa poco a nuestro cuento; basta que en la narración dél no se salga
           un punto de la verdad.
+        </Text>
+      </View>
+
+      <View :styles="styles.text">
+        <Text>
+          Es, pues, de saber, que este sobredicho hidalgo, los ratos que estaba
+          ocioso (que eran los más del año) se daba a leer libros de caballerías
+          con tanta afición y gusto, que olvidó casi de todo punto el ejercicio de
+          la caza, y aun la administración de su hacienda; y llegó a tanto su
+          curiosidad y desatino en esto, que vendió muchas hanegas de tierra de
+          sembradura, para comprar libros de caballerías en que leer; y así llevó
+          a su casa todos cuantos pudo haber dellos; y de todos ningunos le
+          parecían tan bien como los que compuso el famoso Feliciano de Silva:
+          porque la claridad de su prosa, y aquellas intrincadas razones suyas, le
+          parecían de perlas; y más cuando llegaba a leer aquellos requiebros y
+          cartas de desafío, donde en muchas partes hallaba escrito: la razón de
+          la sinrazón que a mi razón se hace, de tal manera mi razón enflaquece,
+          que con razón me quejo de la vuestra fermosura, y también cuando leía:
+          los altos cielos que de vuestra divinidad divinamente con las estrellas
+          se fortifican, y os hacen merecedora del merecimiento que merece la
+          vuestra grandeza.        
         </Text>
       </View>
 

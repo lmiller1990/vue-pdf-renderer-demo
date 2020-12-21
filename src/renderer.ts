@@ -49,7 +49,14 @@ export const createApp = ((...args) => {
 function renderToPDF(doc: PDFDocumentElement, pdf: typeof PDFDocument, nodeMap: NodeMap) {
   const stream = pdf.pipe(fs.createWriteStream(doc.filename))
 
+  // This is the PDFKit integration. It's pretty messy
+  // due to the imperative nature of PDFKit.
   const draw = (node: PDFRenderable) => {
+    // marginTop must be applied first.
+    if (node.styles.marginTop) {
+      pdf.moveDown(node.styles.marginTop)
+    }
+
     if (node instanceof PDFElement) {
       for (const rule of styleRules) {
         applyStyle(rule, node)
@@ -60,12 +67,13 @@ function renderToPDF(doc: PDFDocumentElement, pdf: typeof PDFDocument, nodeMap: 
       const align = getStyleValue('align', node, nodeMap)
       pdf.text(node.value.trim(), {
         align,
-        indent: 0,
+        indent: 0
       })
     }
 
     if (node instanceof PDFImageElement) {
       const align = getStyleValue('align', node, nodeMap)!
+
       // Center it nicely. align: center option in PDFKit appears not to work at all.
       if (align === 'center' && node.width) {
         pdf.image(node.src, (pdf.page.width / 2) - (node.width / 2), undefined, { width: node.width })
@@ -73,6 +81,11 @@ function renderToPDF(doc: PDFDocumentElement, pdf: typeof PDFDocument, nodeMap: 
         // Just do whatever? TODO: Figure out reasonable defaults.
         pdf.image(node.src)
       }
+    }
+
+    // marginBottom must be applied last.
+    if (node.styles.marginBottom) {
+      pdf.moveDown(node.styles.marginBottom)
     }
   }
 
@@ -89,7 +102,7 @@ function renderToPDF(doc: PDFDocumentElement, pdf: typeof PDFDocument, nodeMap: 
   const applyStyle = (rule: StyleRule, node: PDFElements) => {
     const value = getStyleValue(rule, node, nodeMap)
 
-    if (!value) {
+    if (value === undefined) {
       throw Error(`Not default style found for ${rule}`)
     }
 
