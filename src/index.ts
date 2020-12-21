@@ -1,33 +1,14 @@
-import PDFDocument from 'pdfkit'
-import fs from 'fs'
 import {
   h,
-  RendererOptions,
-  createRenderer,
   defineComponent,
   compile
 } from 'vue'
 
 import {
-  defaults,
-  getStyleValue,
-  styleRules,
-  StyleRule
-} from './styling'
-import {
   PDFDocumentElement,
-  PDFElement,
-  PDFElements,
-  PDFNode,
-  PDFNodes,
-  PDFRenderable,
-  PDFTextElement,
-  PDFTextNode,
-  PDFViewElement,
-  Tag,
-  NodeMap
+  Tag
 } from './elements'
-import { createNodeOps } from './nodeOps'
+import { createApp } from './renderer'
 
 const createPDFComponent = (tag: Tag) =>
   defineComponent({
@@ -40,7 +21,6 @@ const createPDFComponent = (tag: Tag) =>
 
 const View = createPDFComponent('View')
 const Text = createPDFComponent('Text')
-const Document = createPDFComponent('Document')
 
 const App = defineComponent({
   components: { Text, View },
@@ -64,66 +44,5 @@ const App = defineComponent({
   `)
 })
 
-const root = new PDFDocumentElement('Document')
-
-const nodeMap: NodeMap = {}
-// createNodeOps mutations nodeMap
-// TODO: is there a way to avoid this?
-const nodeOps = createNodeOps(nodeMap)
-
-const { createApp } = createRenderer<PDFNode, PDFElements>(nodeOps)
-createApp(App).mount(root)
-delete nodeMap['root']['_vnode']
-delete nodeMap['root']['__vue_app__']
-
-const pdf = new PDFDocument()
-const stream = pdf.pipe(fs.createWriteStream('./file.pdf'))
-
-const applyStyle = (rule: StyleRule, node: PDFElements) => {
-  const value = getStyleValue(rule, node, nodeMap)
-
-  if (!value) {
-    throw Error(`Not default style found for ${rule}`)
-  }
-
-  if (rule === 'color') {
-    const value = getStyleValue(rule, node, nodeMap)
-    pdf.fill(value)
-  }
-
-  if (rule === 'fontSize') {
-    const value = getStyleValue(rule, node, nodeMap)!
-    pdf.fontSize(value)
-  }
-}
-
-const draw = (node: PDFRenderable) => {
-  if (node instanceof PDFElement) {
-    for (const rule of styleRules) {
-      console.log(`Drawing ${rule} for ${node.id} with styles ${node.styles}`)
-      applyStyle(rule, node)
-    }
-  }
-
-  if (node instanceof PDFTextNode) {
-    pdf.text(node.value)
-  }
-}
-
-const traverse = (node: PDFRenderable) => {
-  if (node instanceof PDFElement) {
-
-    for (const child of node.children) {
-      draw(nodeMap[child])
-      traverse(nodeMap[child])
-    }
-  }
-}
-
-const rootNode = nodeMap['root']
-
-traverse(rootNode)
-pdf.end()
-stream.on('finish', () => {
-  console.log('Wrote to file.pdf.')
-})
+const app = createApp(App)
+app.mount(new PDFDocumentElement('Document'))
