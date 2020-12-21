@@ -29,7 +29,7 @@ Renders this:
 A very limited subset of styles are supported. The goal is to make authoring a PDF Document a similar experience to author a web app with Vue.
 
 | Rule  | Type | Example | Default |
-| ------------- | ------------- |
+| ---- | ------- | ----- | ---- |
 | color | string | 'blue', 'red' | 'black' |
 | fontSize  | integer  | 10, 15, 45 | 10 |
-| align  | 'left' | 'right' | 'center'  | See type | 'left' | 
+| align  | 'left', 'right', 'center'  | See type | 'left' | 
