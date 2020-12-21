@@ -16,8 +16,16 @@ class PDFTextNode extends PDFNode {
   }
 }
 
+type StyleRule = 'color' | 'fontSize'
+
+type Styles = {
+  [key in StyleRule]?: string
+}
+
+const styleRules: StyleRule[] = ['color', 'fontSize']
+
 class PDFElement extends PDFNode {
-  styles: Record<string, string> = {}
+  styles: Styles = {} 
 }
 
 class PDFDocumentElement extends PDFElement {
@@ -123,12 +131,14 @@ const App = defineComponent({
   render: compile(`
     <View>
       <View :styles="{color: 'red'}">
-        <Text v-for="color in colors" :styles="{color}">
+        <Text v-for="color in colors" :styles="{color, fontSize: color === 'blue' ? 25 : null}">
           {{ color }}
         </Text>
       </View>
       <Text>Default</Text>
       <Text :styles="{color: 'yellow'}">Yellow</Text>
+      <Text :styles="{fontSize: 15}">Font size 15</Text>
+      <Text :styles="{fontSize: 30}">Font size 30</Text>
     </View>
   `)
 })
@@ -141,14 +151,14 @@ delete nodeMap['root']['_vnode']
 delete nodeMap['root']['__vue_app__']
 
 const pdf = new PDFDocument()
-pdf.fontSize(50)
 const stream = pdf.pipe(fs.createWriteStream('./file.pdf'))
 
 const defaults: Record<string, any> = {
-  color: 'black'
+  color: 'black',
+  fontSize: 14
 }
 
-const getParentStyle = (attr: string, parent: PDFRenderable): string => {
+const getParentStyle = (attr: string, parent: PDFRenderable): string | number => {
   // we are at the root <Document> element.
   if (parent instanceof PDFDocumentElement) {
     return defaults[attr]
@@ -165,13 +175,40 @@ const getParentStyle = (attr: string, parent: PDFRenderable): string => {
   return getParentStyle(attr, nodeMap[parent.parent!])
 }
 
+const getStyleValue = (rule: StyleRule, node: PDFElement) => {
+  if (rule in node.styles && node.styles[rule]) {
+    return node.styles[rule]
+  }
+
+  // @ts-ignore
+  return getParentStyle(rule, nodeMap[node.parent!])
+}
+
+const applyStyle = (rule: StyleRule, node: PDFElement) => {
+  const value = getStyleValue(rule, node)
+
+  if (!value) {
+    throw Error(`Not default style found for ${rule}`)
+  }
+
+  switch (rule) {
+    case 'color': {
+      // @ts-ignore
+      pdf.fill(value)
+    }
+
+    case 'fontSize': {
+      // @ts-ignore
+      pdf.fontSize(value)
+    }
+  }
+}
+
 const draw = (node: PDFRenderable) => {
   if (node instanceof PDFElement) {
-    if (node.styles.color) {
-      pdf.fill(node.styles.color)
-    } else {
-      // @ts-ignore
-      pdf.fill(getParentStyle('color', nodeMap[node.parent]))
+    for (const rule of styleRules) {
+      console.log(`Drawing ${rule} for ${node.id} with styles ${node.styles}`)
+      applyStyle(rule, node)
     }
   }
 
